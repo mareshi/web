@@ -22,5 +22,21 @@
       tileSources: "https://iiif.harvardartmuseums.org/manifests/object/299843"
     });
   </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/openseadragonselection@1.0.2/dist/openseadragonselection.min.js"></script>
+
+const viewer = OpenSeadragon({
+  id: "viewer",
+  prefixUrl: "https://cdn.jsdelivr.net/npm/openseadragon@4.1/build/openseadragon/images/",
+  tileSources: "https://ids.lib.harvard.edu/ids/iiif/47174896/info.json",
+});
+
+viewer.selection({
+  onSelection: function(rect) {
+    // 選択範囲の座標情報を取得
+    alert(`座標: x=${rect.x}, y=${rect.y}, 幅=${rect.width}, 高さ=${rect.height}`);
+    // ここで座標をフォームに入力したり、データとして保存したりできます
+  }
+});
 </body>
 </html>
