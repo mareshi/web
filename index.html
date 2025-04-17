@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>OpenSeadragonでIIIF画像表示</title>
+  <script src="https://cdn.jsdelivr.net/npm/openseadragon@4.1/build/openseadragon/openseadragon.min.js"></script>
+  <style>
+    #viewer {
+      width: 800px;
+      height: 600px;
+      border: 1px solid black;
+    }
+  </style>
+</head>
+<body>
+  <div id="viewer"></div>
+  
+  <script>
+    const viewer = OpenSeadragon({
+      id: "viewer",
+      prefixUrl: "https://cdn.jsdelivr.net/npm/openseadragon@4.1/build/openseadragon/images/",
+      tileSources: "https://iiif.harvardartmuseums.org/manifests/object/299843"
+    });
+  </script>
+</body>
+</html>
