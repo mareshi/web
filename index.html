@@ -5,8 +5,8 @@
   <title>OpenSeadragonでIIIF画像表示</title>
   <script src="https://cdn.jsdelivr.net/npm/openseadragon@4.1/build/openseadragon/openseadragon.min.js"></script>
   <!-- headタグ内 -->
-<script src="https://cdn.jsdelivr.net/npm/openseadragonselection@1.0.2/dist/openseadragonselection.min.js"></script>
- // 上記のOpenSeadragon初期化後に追加
+<script src="https://cdn.jsdelivr.net/npm/openseadragonselection@1.0.2/dist/openseadragonselection.min.js">
+// 上記のOpenSeadragon初期化後に追加
 viewer.selection({
   onSelection: function(rect) {
     const imageSize = viewer.world.getItemAt(0).getContentSize();
@@ -19,6 +19,7 @@ viewer.selection({
     alert(`座標(px): ${JSON.stringify(pixelRect)}`);
   }
 });
+  </script>
   <style>
     #viewer {
       width: 800px;
