@@ -4,6 +4,21 @@
   <meta charset="UTF-8">
   <title>OpenSeadragonでIIIF画像表示</title>
   <script src="https://cdn.jsdelivr.net/npm/openseadragon@4.1/build/openseadragon/openseadragon.min.js"></script>
+  <!-- headタグ内 -->
+<script src="https://cdn.jsdelivr.net/npm/openseadragonselection@1.0.2/dist/openseadragonselection.min.js"></script>
+ // 上記のOpenSeadragon初期化後に追加
+viewer.selection({
+  onSelection: function(rect) {
+    const imageSize = viewer.world.getItemAt(0).getContentSize();
+    const pixelRect = {
+      x: Math.round(rect.x * imageSize.x),
+      y: Math.round(rect.y * imageSize.y),
+      width: Math.round(rect.width * imageSize.x),
+      height: Math.round(rect.height * imageSize.y)
+    };
+    alert(`座標(px): ${JSON.stringify(pixelRect)}`);
+  }
+});
   <style>
     #viewer {
       width: 800px;
@@ -23,20 +38,5 @@
     });
   </script>
 
-  <script src="https://cdn.jsdelivr.net/npm/openseadragonselection@1.0.2/dist/openseadragonselection.min.js"></script>
-
-const viewer = OpenSeadragon({
-  id: "viewer",
-  prefixUrl: "https://cdn.jsdelivr.net/npm/openseadragon@4.1/build/openseadragon/images/",
-  tileSources: "https://ids.lib.harvard.edu/ids/iiif/47174896/info.json",
-});
-
-viewer.selection({
-  onSelection: function(rect) {
-    // 選択範囲の座標情報を取得
-    alert(`座標: x=${rect.x}, y=${rect.y}, 幅=${rect.width}, 高さ=${rect.height}`);
-    // ここで座標をフォームに入力したり、データとして保存したりできます
-  }
-});
 </body>
 </html>
