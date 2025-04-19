@@ -94,19 +94,13 @@ function simplifyPageId(id) {
           const coords = selector.split("=").pop().replace("pixel:", "").split(",").map(v => Math.round(parseFloat(v)));
           const [x, y, w, h] = coords;
           
-          // 例: https://dl.ndl.go.jp/api/iiif/2536303/R0000004
-const serviceId = canvases[currentIndex].images[0].resource.service["@id"];
 
-// "R0000004" を抽出
-const rawPageId = serviceId.split("/").pop();
-
-// "R4" に簡略化
-const page = simplifyPageId(rawPageId); // ← 下に関数定義あり
-
-// URL を R4 ベースで再構築
-const base = serviceId.replace(/R0*[0-9]+$/, page);
-const iiif_url = `${base}/${x},${y},${w},${h}/full/0/default.jpg`;
-            
+// ここで image service の @id から R0000008 を取得
+const service = canvases[currentIndex].images[0].resource.service["@id"];
+const rawPageId = service.split("/").pop();          // "R0000008"
+const page = simplifyPageId(rawPageId);              // "R8"
+const base = service.replace(/R0*[0-9]+$/, page);     // "…/R0000008" → "…/R8"
+const iiif_url = `${base}/${x},${y},${w},${h}/full/0/default.jpg`;            
 
           const item = {
             page, x, y, w, h, comment: text, iiif_url
