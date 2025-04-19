@@ -63,9 +63,12 @@
       loadPage();
     }
 function simplifyPageId(id) {
-  const match = id.match(/R0*([1-9][0-9]*)/);
-  return match ? "R" + match[1] : id;
+  // Rに続く0埋め数字から、0を除去してRを維持する
+  const match = id.match(/(R)0*([1-9][0-9]*)/);
+  return match ? match[1] + match[2] : id;  // ← "R" + "4" → "R4"
 }
+
+
     function loadPage() {
       const tileSource = canvases[currentIndex].images[0].resource.service["@id"] + "/info.json";
       if (viewer) viewer.destroy();
