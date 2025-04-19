@@ -63,11 +63,10 @@
       loadPage();
     }
 
-    function simplifyPageId(id) {
-      const match = id.match(/R0*([0-9]+)/);
-      return match ? `R${match[1]}` : id;
-    }
-
+function simplifyPageId(id) {
+  const match = id.match(/R0*([1-9][0-9]*)/);
+  return match ? `R${match[1]}` : id;
+}
     function loadPage() {
       const tileSource = canvases[currentIndex].images[0].resource.service["@id"] + "/info.json";
       if (viewer) viewer.destroy();
@@ -98,6 +97,7 @@
             const page = simplifyPageId(rawPageId);
             const base = service.replace(/R0*[0-9]+$/, page);
             const iiif_url = `${base}/${x},${y},${w},${h}/full/0/default.jpg`;
+            
 
           const item = {
             page, x, y, w, h, comment: text, iiif_url
