@@ -2,20 +2,24 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>IIIF Annotation Tool (iOS Compatible) - Fixed</title>
+  <title>IIIF Annotation Tool (iOS Compatible) - Final Fix</title>
   <style>
     body { margin: 0; font-family: sans-serif; }
     #controls { padding: 10px; background: #f0f0f0; }
     #viewer { width: 100vw; height: 80vh; }
-    /* Prevent native browser touch scrolling on the viewer */
-    #viewer canvas { touch-action: none; }
+    #viewer canvas:nth-child(1) {
+      pointer-events: none !important;
+    }
+    #viewer canvas:nth-child(2) {
+      pointer-events: auto !important;
+    }
   </style>
   <!-- OpenSeadragon -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
   <!-- Fabric.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
   <!-- OpenSeadragon FabricJS Overlay plugin -->
-  <script src="https://unpkg.com/openseadragon-fabricjs-overlay@1.0.0/dist/openseadragon-fabricjs-overlay.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/openseadragon-fabricjs-overlay@1.0.1/dist/openseadragon-fabricjs-overlay.min.js"></script>
 </head>
 <body>
   <div id="controls">
@@ -44,8 +48,7 @@
       });
 
       viewer.addHandler('open', () => {
-        // Use the global constructor from plugin
-        overlay = new OpenSeadragonFabricjsOverlay(viewer);
+        overlay = new OpenSeadragon.FabricjsOverlay(viewer); // Corrected constructor
         fabricCanvas = overlay.fabricCanvas();
         fabricCanvas.on('mouse:down', onDown);
         fabricCanvas.on('mouse:move', onMove);
@@ -60,12 +63,14 @@
         });
         fabricCanvas.add(rect);
       }
+
       function onMove(opt) {
         if (!rect) return;
         const p = fabricCanvas.getPointer(opt.e);
         rect.set({ width: Math.abs(p.x - rect.left), height: Math.abs(p.y - rect.top) });
         fabricCanvas.renderAll();
       }
+
       function onUp(opt) {
         if (!rect) return;
         rect.setCoords();
