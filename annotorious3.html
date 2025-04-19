@@ -62,6 +62,7 @@
       currentIndex = 0;
       loadPage();
     }
+    
 function simplifyPageId(id) {
   // Rに続く0埋め数字から、0を除去してRを維持する
   const match = id.match(/(R)0*([1-9][0-9]*)/);
@@ -93,12 +94,18 @@ function simplifyPageId(id) {
           const coords = selector.split("=").pop().replace("pixel:", "").split(",").map(v => Math.round(parseFloat(v)));
           const [x, y, w, h] = coords;
           
-          
-          const service = canvases[currentIndex].images[0].resource.service["@id"];
-            const rawPageId = canvases[currentIndex]["@id"].split("/").pop();
-            const page = simplifyPageId(rawPageId);
-            const base = service.replace(/R0*[0-9]+$/, page);
-            const iiif_url = `${base}/${x},${y},${w},${h}/full/0/default.jpg`;
+          // 例: https://dl.ndl.go.jp/api/iiif/2536303/R0000004
+const serviceId = canvases[currentIndex].images[0].resource.service["@id"];
+
+// "R0000004" を抽出
+const rawPageId = serviceId.split("/").pop();
+
+// "R4" に簡略化
+const page = simplifyPageId(rawPageId); // ← 下に関数定義あり
+
+// URL を R4 ベースで再構築
+const base = serviceId.replace(/R0*[0-9]+$/, page);
+const iiif_url = `${base}/${x},${y},${w},${h}/full/0/default.jpg`;
             
 
           const item = {
