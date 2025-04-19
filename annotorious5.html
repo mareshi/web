@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>IIIF Annotorious 注釈ツール（常時表示ラベル対応）</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #controls {
+      padding: 10px; background: #f0f0f0; display: flex;
+      flex-wrap: wrap; gap: 10px; align-items: center;
+    }
+    #metadata {
+      padding: 10px;
+      background: #fffbe6;
+      border-top: 1px solid #ddd;
+      font-size: 0.95em;
+    }
+    #viewer { width: 100vw; height: 80vh; }
+    #output { padding: 10px; background: #fafafa; height: 20vh; overflow-y: auto; }
+    #status {
+      font-weight: bold;
+      padding: 5px 10px;
+      border-radius: 5px;
+      color: white;
+    }
+    .active { background-color: green; }
+    .inactive { background-color: gray; }
+  </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@recogito/annotorious-openseadragon@2.7.14/dist/annotorious.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@recogito/annotorious@2.7.6/dist/annotorious.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@recogito/annotorious-openseadragon@2.7.14/dist/openseadragon-annotorious.min.js"></script>
+</head>
+<body>
+  <div id="controls">
+    <label>IIIF manifest / DOI / Persistent ID:</label>
+    <input type="text" id="manifestUrl" size="60"
+      value="info:ndljp/pid/2536303" />
+    <button type="button" onclick="loadViewer()">読み込む</button>
+    <button type="button" onclick="prevPage()">前へ</button>
+    <button type="button" onclick="nextPage()">次へ</button>
+    <button type="button" onclick="exportCSV()">CSVで保存</button>
+    <span id="status" class="inactive">選択無効</span>
+  </div>
+  <div id="metadata">
+    <h2>書誌情報</h2>
+    <ul id="metadataList"><li>未読み込み</li></ul>
+  </div>
+  <div id="viewer"></div>
+  <pre id="output">注釈がここに表示されます</pre>
+
+  <script>
+    let viewer, anno, canvases = [], currentIndex = 0;
+    let bibliographicInfo = { title: "", creator: "", date: "" };
+    const annotationsMap = {};
+
+    function normalizeInputURL(input) {
+      const doiMatch = input.match(/10\.11501\/(\d+)/);
+      const pidMatch = input.match(/info:ndljp\/pid\/(\d+)/);
+      if (doiMatch) {
+        return `https://dl.ndl.go.jp/api/iiif/${doiMatch[1]}/manifest.json`;
+      } else if (pidMatch) {
+        return `https://dl.ndl.go.jp/api/iiif/${pidMatch[1]}/manifest.json`;
+      }
+      return input;
+    }
+
+    function simplifyPageId(id) {
+      const match = id.match(/(R)0*([1-9][0-9]*)/);
+      return match ? match[1] + match[2] : id;
+    }
+
+    function displayMetadata(metadata) {
+      const list = document.getElementById("metadataList");
+      list.innerHTML = "";
+      const keys = ["Title", "Creator", "Publication Date"];
+      for (const key of keys) {
+        const entry = metadata.find(m => m.label === key);
+        if (entry) {
+          if (key === "Title") bibliographicInfo.title = entry.value;
+          if (key === "Creator") bibliographicInfo.creator = entry.value;
+          if (key === "Publication Date") bibliographicInfo.date = entry.value;
+          const li = document.createElement("li");
+          li.innerHTML = `<strong>${key}:</strong> ${entry.value}`;
+          list.appendChild(li);
+        }
+      }
+    }
+
+    async function loadViewer() {
+      const rawUrl = document.getElementById("manifestUrl").value;
+      const url = normalizeInputURL(rawUrl);
+      const res = await fetch(url);
+      const manifest = await res.json();
+      displayMetadata(manifest.metadata || []);
+      canvases = manifest.sequences[0].canvases;
+      currentIndex = 0;
+      loadPage();
+    }
+
+    function loadPage() {
+      const service = canvases[currentIndex].images[0].resource.service["@id"];
+      const rawPageId = service.split("/").pop();
+      const page = simplifyPageId(rawPageId);
+      const tileSource = `${service}/info.json`;
+
+      if (viewer) viewer.destroy();
+      viewer = OpenSeadragon({
+        id: "viewer",
+        prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
+        tileSources: tileSource
+      });
+
+      viewer.addHandler("open", () => {
+        if (anno) anno.destroy();
+        anno = OpenSeadragon.Annotorious(viewer, {
+          locale: "ja",
+          widgets: [{ widget: "COMMENT", visible: true }]
+        });
+
+        updateStatus(true);
+
+        anno.on("createAnnotation", annotation => {
+          const selector = annotation.target.selector.value;
+          const text = annotation.body[0].value;
+          const coords = selector.split("=").pop().replace("pixel:", "").split(",").map(v => Math.round(parseFloat(v)));
+          const [x, y, w, h] = coords;
+          const base = service.replace(/R0*[0-9]+$/, page);
+          const iiif_url = `${base}/${x},${y},${w},${h}/full/0/default.jpg`;
+
+          const item = {
+            page, x, y, w, h, comment: text, iiif_url
+          };
+          if (!annotationsMap[currentIndex]) annotationsMap[currentIndex] = [];
+          annotationsMap[currentIndex].push(item);
+
+          const markdown = `[${text}（${bibliographicInfo.title}）](${iiif_url} "${text}（${bibliographicInfo.title}）")`;
+          navigator.clipboard.writeText(markdown).then(() => {
+            console.log("クリップボードにコピー:", markdown);
+          });
+
+          showAnnotations(currentIndex);
+        });
+
+        showAnnotations(currentIndex);
+      });
+    }
+
+    function updateStatus(active) {
+      const status = document.getElementById("status");
+      if (active) {
+        status.className = "active";
+        status.textContent = "選択有効";
+      } else {
+        status.className = "inactive";
+        status.textContent = "選択無効";
+      }
+    }
+
+    function showAnnotations(index) {
+      const output = document.getElementById("output");
+      const anns = annotationsMap[index] || [];
+      output.textContent = JSON.stringify(anns, null, 2);
+    }
+
+    function prevPage() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        loadPage();
+      }
+    }
+
+    function nextPage() {
+      if (currentIndex < canvases.length - 1) {
+        currentIndex++;
+        loadPage();
+      }
+    }
+
+    function exportCSV() {
+      const headers = ["title", "creator", "date", "page", "x", "y", "w", "h", "comment", "iiif_url"];
+      const allAnnotations = Object.values(annotationsMap).flat();
+      const rows = allAnnotations.map(a => [
+        `"${bibliographicInfo.title}"`,
+        `"${bibliographicInfo.creator}"`,
+        `"${bibliographicInfo.date}"`,
+        a.page, a.x, a.y, a.w, a.h,
+        `"${a.comment}"`,
+        `"${a.iiif_url}"`
+      ]);
+      const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "annotations.csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>
