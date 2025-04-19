@@ -91,10 +91,13 @@
           const text = annotation.body[0].value;
           const coords = selector.split("=").pop().replace("pixel:", "").split(",").map(v => Math.round(parseFloat(v)));
           const [x, y, w, h] = coords;
-          const rawPageId = canvases[currentIndex]["@id"].split("/").pop();
-          const page = simplifyPageId(rawPageId);
+          
+          
           const service = canvases[currentIndex].images[0].resource.service["@id"];
-          const iiif_url = `${service}/${x},${y},${w},${h}/full/0/default.jpg`;
+            const rawPageId = canvases[currentIndex]["@id"].split("/").pop();
+            const page = simplifyPageId(rawPageId);
+            const base = service.replace(/R0*[0-9]+$/, page);
+            const iiif_url = `${base}/${x},${y},${w},${h}/full/0/default.jpg`;
 
           const item = {
             page, x, y, w, h, comment: text, iiif_url
