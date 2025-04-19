@@ -96,7 +96,7 @@ function simplifyPageId(id) {
             const rawPageId = canvases[currentIndex]["@id"].split("/").pop();
             const page = simplifyPageId(rawPageId);
             const base = service.replace(/R0*[0-9]+$/, page);
-            const iiif_url = `${base}/${x},${y},${w},${h}/full/0/default.jpg`;
+            const iiif_url = `${page}/${x},${y},${w},${h}/full/0/default.jpg`;
             
 
           const item = {
