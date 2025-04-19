@@ -44,12 +44,15 @@
     const annotationsMap = {};
 
     function normalizeInputURL(input) {
-      const doiMatch = input.match(/10\.11501\/(\d+)/);
-      if (doiMatch) {
-        return `https://dl.ndl.go.jp/api/iiif/${doiMatch[1]}/manifest.json`;
-      }
-      return input;
-    }
+  const doiMatch = input.match(/10\\.11501\\/(\\d+)/);
+  const pidMatch = input.match(/info:ndljp\\/pid\\/(\\d+)/);
+  if (doiMatch) {
+    return `https://dl.ndl.go.jp/api/iiif/${doiMatch[1]}/manifest.json`;
+  } else if (pidMatch) {
+    return `https://dl.ndl.go.jp/api/iiif/${pidMatch[1]}/manifest.json`;
+  }
+  return input;
+}
 
     function simplifyPageId(id) {
       const match = id.match(/(R)0*([1-9][0-9]*)/);
