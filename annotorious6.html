@@ -159,6 +159,12 @@
         anno.loadAnnotations(anns);
       };
       reader.readAsText(file);
+      reader.onload = function(e) {
+  const text = e.target.result;
+  console.log("== CSV ファイルの中身 ==");
+  console.log(text);
+  ...
+};
     }
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@recogito/annotorious-openseadragon@2.7.14/dist/openseadragon-annotorious.min.js">
