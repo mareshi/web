@@ -145,7 +145,7 @@ function simplifyPageId(id) {
       const headers = ["page", "x", "y", "w", "h", "comment", "iiif_url"];
       const allAnnotations = Object.values(annotationsMap).flat();
       const rows = allAnnotations.map(a => [
-        a.page, a.x, a.y, a.w, a.h, `"${a.comment}"`, `"a.iiif_url"``
+        a.page, a.x, a.y, a.w, a.h, `"${a.comment}"`, `"a.iiif_url"`
       ]);
       const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
