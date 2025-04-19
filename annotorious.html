@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>IIIF Annotorious 注釈ビューア</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #controls { padding: 10px; background: #f8f8f8; }
+    #viewer { width: 100vw; height: 80vh; }
+    pre { padding: 10px; background: #f0f0f0; height: 20vh; overflow: auto; margin: 0; }
+  </style>
+  <!-- OpenSeadragon -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
+  <!-- Annotorious -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@recogito/annotorious@2.7.6/dist/annotorious.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@recogito/annotorious@2.7.6/dist/annotorious.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@recogito/annotorious-openseadragon@2.7.6/dist/annotorious-openseadragon.min.js"></script>
+</head>
+<body>
+  <div id="controls">
+    IIIF manifest URL:
+    <input type="text" id="manifestUrl" size="60"
+      value="https://dl.ndl.go.jp/api/iiif/2536303/manifest.json" />
+    <button onclick="loadViewer()">読み込む</button>
+  </div>
+  <div id="viewer"></div>
+  <pre id="output">注釈がここに表示されます</pre>
+
+  <script>
+    let viewer, anno;
+
+    async function loadViewer() {
+      const url = document.getElementById("manifestUrl").value;
+      const res = await fetch(url);
+      const manifest = await res.json();
+      const canvas = manifest.sequences[0].canvases[0];
+      const tileSource = canvas.images[0].resource.service["@id"] + "/info.json";
+
+      if (viewer) viewer.destroy();
+      viewer = OpenSeadragon({
+        id: "viewer",
+        prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
+        tileSources: tileSource,
+      });
+
+      viewer.addHandler("open", () => {
+        anno = Annotorious(viewer, {
+          locale: "ja",
+          widgets: ["COMMENT"]
+        });
+
+        anno.on("createAnnotation", annotation => {
+          const selector = annotation.target.selector.value; // xywh=pixel:x,y,w,h
+          const text = annotation.body[0].value;
+          document.getElementById("output").textContent = JSON.stringify(annotation, null, 2);
+          console.log("注釈作成:", selector, text);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
