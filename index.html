@@ -1,43 +1,87 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>OpenSeadragonでIIIF画像表示</title>
-  <script src="https://cdn.jsdelivr.net/npm/openseadragon@4.1/build/openseadragon/openseadragon.min.js"></script>
-  <!-- headタグ内 -->
-<script src="https://cdn.jsdelivr.net/npm/openseadragonselection@1.0.2/dist/openseadragonselection.min.js">
-// 上記のOpenSeadragon初期化後に追加
-viewer.selection({
-  onSelection: function(rect) {
-    const imageSize = viewer.world.getItemAt(0).getContentSize();
-    const pixelRect = {
-      x: Math.round(rect.x * imageSize.x),
-      y: Math.round(rect.y * imageSize.y),
-      width: Math.round(rect.width * imageSize.x),
-      height: Math.round(rect.height * imageSize.y)
-    };
-    alert(`座標(px): ${JSON.stringify(pixelRect)}`);
-  }
-});
-  </script>
+  <meta charset="utf-8">
+  <title>IIIF Annotation Tool (iOS Compatible) - Fixed</title>
   <style>
-    #viewer {
-      width: 800px;
-      height: 600px;
-      border: 1px solid black;
-    }
+    body { margin: 0; font-family: sans-serif; }
+    #controls { padding: 10px; background: #f0f0f0; }
+    #viewer { width: 100vw; height: 80vh; }
+    /* Prevent native browser touch scrolling on the viewer */
+    #viewer canvas { touch-action: none; }
   </style>
+  <!-- OpenSeadragon -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
+  <!-- Fabric.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+  <!-- OpenSeadragon FabricJS Overlay plugin -->
+  <script src="https://unpkg.com/openseadragon-fabricjs-overlay@1.0.0/dist/openseadragon-fabricjs-overlay.min.js"></script>
 </head>
 <body>
+  <div id="controls">
+    IIIF manifest URL:
+    <input type="text" id="manifestUrl" size="60" value="https://dl.ndl.go.jp/api/iiif/2536303/manifest.json">
+    <button onclick="loadAnnotation()">読み込む</button>
+  </div>
   <div id="viewer"></div>
-  
-  <script>
-    const viewer = OpenSeadragon({
-      id: "viewer",
-      prefixUrl: "https://cdn.jsdelivr.net/npm/openseadragon@4.1/build/openseadragon/images/",
-      tileSources: "https://dl.ndl.go.jp/api/iiif/2536303/manifest.json"
-    });
-  </script>
+  <pre id="output" style="padding:10px; background:#fafafa;"></pre>
 
+  <script>
+    let viewer, overlay, fabricCanvas, rect, annotations = [];
+
+    async function loadAnnotation() {
+      const url = document.getElementById('manifestUrl').value;
+      const manifest = await fetch(url).then(r => r.json());
+      const canvases = manifest.sequences[0].canvases;
+      let idx = 0;
+
+      if (viewer) viewer.destroy();
+      viewer = OpenSeadragon({
+        id: 'viewer',
+        prefixUrl: 'https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/',
+        tileSources: canvases[idx].images[0].resource.service['@id'] + '/info.json',
+        gestureSettingsTouch: { dragToPan: false, pinchToZoom: false }
+      });
+
+      viewer.addHandler('open', () => {
+        // Use the global constructor from plugin
+        overlay = new OpenSeadragonFabricjsOverlay(viewer);
+        fabricCanvas = overlay.fabricCanvas();
+        fabricCanvas.on('mouse:down', onDown);
+        fabricCanvas.on('mouse:move', onMove);
+        fabricCanvas.on('mouse:up', onUp);
+      });
+
+      function onDown(opt) {
+        const p = fabricCanvas.getPointer(opt.e);
+        rect = new fabric.Rect({
+          left: p.x, top: p.y, width: 0, height: 0,
+          fill: 'rgba(255,0,0,0.3)', selectable: false
+        });
+        fabricCanvas.add(rect);
+      }
+      function onMove(opt) {
+        if (!rect) return;
+        const p = fabricCanvas.getPointer(opt.e);
+        rect.set({ width: Math.abs(p.x - rect.left), height: Math.abs(p.y - rect.top) });
+        fabricCanvas.renderAll();
+      }
+      function onUp(opt) {
+        if (!rect) return;
+        rect.setCoords();
+        const coords = {
+          x: Math.round(rect.left),
+          y: Math.round(rect.top),
+          w: Math.round(rect.width * rect.scaleX),
+          h: Math.round(rect.height * rect.scaleY)
+        };
+        const service = canvases[idx].images[0].resource.service['@id'];
+        const iiif_url = `${service}/${coords.x},${coords.y},${coords.w},${coords.h}/full/0/default.jpg`;
+        annotations.push({ page: canvases[idx]['@id'].split('/').pop(), ...coords, iiif_url });
+        document.getElementById('output').textContent = JSON.stringify(annotations, null, 2);
+        rect = null;
+      }
+    }
+  </script>
 </body>
 </html>
