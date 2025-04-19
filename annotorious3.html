@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>IIIF Annotorious 注釈ツール</title>
+  <title>IIIF Annotorious 注釈ツール（DOI対応）</title>
   <style>
     body { margin: 0; font-family: sans-serif; }
     #controls {
@@ -27,13 +27,13 @@
 </head>
 <body>
   <div id="controls">
-    <label>IIIF manifest URL:</label>
+    <label>IIIF manifest or DOI:</label>
     <input type="text" id="manifestUrl" size="60"
-      value="https://dl.ndl.go.jp/api/iiif/2536303/manifest.json" />
-    <button onclick="loadViewer()">読み込む</button>
-    <button onclick="prevPage()">前へ</button>
-    <button onclick="nextPage()">次へ</button>
-    <button onclick="exportCSV()">CSVで保存</button>
+      value="https://doi.org/10.11501/2536303" />
+    <button type="button" onclick="loadViewer()">読み込む</button>
+    <button type="button" onclick="prevPage()">前へ</button>
+    <button type="button" onclick="nextPage()">次へ</button>
+    <button type="button" onclick="exportCSV()">CSVで保存</button>
     <span id="status" class="inactive">選択無効</span>
   </div>
   <div id="viewer"></div>
@@ -43,35 +43,35 @@
     let viewer, anno, canvases = [], currentIndex = 0;
     const annotationsMap = {};
 
-    function updateStatus(active) {
-      const status = document.getElementById("status");
-      if (active) {
-        status.className = "active";
-        status.textContent = "選択有効";
-      } else {
-        status.className = "inactive";
-        status.textContent = "選択無効";
+    function normalizeInputURL(input) {
+      const doiMatch = input.match(/10\.11501\/(\d+)/);
+      if (doiMatch) {
+        return `https://dl.ndl.go.jp/api/iiif/${doiMatch[1]}/manifest.json`;
       }
+      return input;
+    }
+
+    function simplifyPageId(id) {
+      const match = id.match(/(R)0*([1-9][0-9]*)/);
+      return match ? match[1] + match[2] : id;
     }
 
     async function loadViewer() {
-      const url = document.getElementById("manifestUrl").value;
+      const rawUrl = document.getElementById("manifestUrl").value;
+      const url = normalizeInputURL(rawUrl);
       const res = await fetch(url);
       const manifest = await res.json();
       canvases = manifest.sequences[0].canvases;
       currentIndex = 0;
       loadPage();
     }
-    
-function simplifyPageId(id) {
-  // Rに続く0埋め数字から、0を除去してRを維持する
-  const match = id.match(/(R)0*([1-9][0-9]*)/);
-  return match ? match[1] + match[2] : id;  // ← "R" + "4" → "R4"
-}
-
 
     function loadPage() {
-      const tileSource = canvases[currentIndex].images[0].resource.service["@id"] + "/info.json";
+      const service = canvases[currentIndex].images[0].resource.service["@id"];
+      const rawPageId = service.split("/").pop();
+      const page = simplifyPageId(rawPageId);
+      const tileSource = `${service}/info.json`;
+
       if (viewer) viewer.destroy();
       viewer = OpenSeadragon({
         id: "viewer",
@@ -93,14 +93,8 @@ function simplifyPageId(id) {
           const text = annotation.body[0].value;
           const coords = selector.split("=").pop().replace("pixel:", "").split(",").map(v => Math.round(parseFloat(v)));
           const [x, y, w, h] = coords;
-          
-
-        // ここで image service の @id から R0000008 を取得
-        const service = canvases[currentIndex].images[0].resource.service["@id"];
-        const rawPageId = service.split("/").pop();          // "R0000008"
-        const page = simplifyPageId(rawPageId);              // "R8"
-        const base = service.replace(/R0*[0-9]+$/, page);     // "…/R0000008" → "…/R8"
-        const iiif_url = `${base}/${x},${y},${w},${h}/full/0/default.jpg`;            
+          const base = service.replace(/R0*[0-9]+$/, page);
+          const iiif_url = `${base}/${x},${y},${w},${h}/full/0/default.jpg`;
 
           const item = {
             page, x, y, w, h, comment: text, iiif_url
@@ -108,7 +102,6 @@ function simplifyPageId(id) {
           if (!annotationsMap[currentIndex]) annotationsMap[currentIndex] = [];
           annotationsMap[currentIndex].push(item);
 
-          // Markdown形式をコピー
           const markdown = `[${text}](${iiif_url} "${text}")`;
           navigator.clipboard.writeText(markdown).then(() => {
             console.log("クリップボードにコピー:", markdown);
@@ -119,6 +112,17 @@ function simplifyPageId(id) {
 
         showAnnotations(currentIndex);
       });
+    }
+
+    function updateStatus(active) {
+      const status = document.getElementById("status");
+      if (active) {
+        status.className = "active";
+        status.textContent = "選択有効";
+      } else {
+        status.className = "inactive";
+        status.textContent = "選択無効";
+      }
     }
 
     function showAnnotations(index) {
@@ -145,10 +149,10 @@ function simplifyPageId(id) {
       const headers = ["page", "x", "y", "w", "h", "comment", "iiif_url"];
       const allAnnotations = Object.values(annotationsMap).flat();
       const rows = allAnnotations.map(a => [
-  a.page, a.x, a.y, a.w, a.h,
-  `"${a.comment}"`,                // ✅ コメントもクオート
-  `"${a.iiif_url}"`                // ✅ URLをクオート
-]);
+        a.page, a.x, a.y, a.w, a.h,
+        `"${a.comment}"`,
+        `"${a.iiif_url}"`
+      ]);
       const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
